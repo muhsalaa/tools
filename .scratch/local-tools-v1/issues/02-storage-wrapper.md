@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] DayLog round-trips; same-date load returns stored Sessions
 - [ ] Date change yields an empty DayLog (no carry-over)

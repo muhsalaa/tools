@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 (Shell + routes), 02 (Storage wrapper).
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] 25 focus / 5 short / 15 long-after-4 cycle with manual start of next block
 - [ ] Pause, resume, and reset behave; timer stays drift-safe

@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] Home grid shows one big icon per Tool and navigates to its route
 - [ ] Each Tool route renders with a working home button

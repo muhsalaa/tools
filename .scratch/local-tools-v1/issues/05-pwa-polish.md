@@ -4,7 +4,7 @@
 
 **Blocked by:** 03 (Pomodoro Tool), 04 (Notes Tool).
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] Manifest + precache SW verified: fresh load online, then routes work offline
 - [ ] Shell and both Tools share the Timeyfi tokens (mint paper, pine ink, rounded voice)

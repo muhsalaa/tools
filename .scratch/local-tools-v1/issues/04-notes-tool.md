@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 (Shell + routes), 02 (Storage wrapper).
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] Add a NoteCard from quick input; title auto-derives from first line
 - [ ] Pin toggles with pinned-first ordering
