@@ -24,7 +24,7 @@ function restOf(body: string): string {
   return idx === -1 ? "" : body.slice(idx + 1).trimStart();
 }
 
-export function NotesStub() {
+export function NotesPage() {
   const [notes, setNotes] = useState<NoteCard[]>([]);
   const [draft, setDraft] = useState("");
   const [query, setQuery] = useState("");

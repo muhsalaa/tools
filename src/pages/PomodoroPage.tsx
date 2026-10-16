@@ -21,7 +21,7 @@ const MODE_LABEL: Record<PomodoroMode, string> = {
 const PILL =
   "rounded-full px-5 py-2 text-sm font-semibold transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-40";
 
-export function PomodoroStub() {
+export function PomodoroPage() {
   const [mode, setMode] = useState<PomodoroMode>("focus");
   const [status, setStatus] = useState<Status>("idle");
   const [remainingSec, setRemainingSec] = useState(durationOf("focus"));

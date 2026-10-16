@@ -1,7 +1,7 @@
 import { Outlet, createRootRoute, createRoute, createRouter } from "@tanstack/react-router";
 import { HomePage } from "./pages/HomePage";
-import { NotesStub } from "./pages/NotesStub";
-import { PomodoroStub } from "./pages/PomodoroStub";
+import { NotesPage } from "./pages/NotesPage";
+import { PomodoroPage } from "./pages/PomodoroPage";
 
 function Shell() {
   return (
@@ -20,13 +20,13 @@ const homeRoute = createRoute({
 });
 
 const pomodoroRoute = createRoute({
-  component: PomodoroStub,
+  component: PomodoroPage,
   getParentRoute: () => rootRoute,
   path: "/pomodoro",
 });
 
 const notesRoute = createRoute({
-  component: NotesStub,
+  component: NotesPage,
   getParentRoute: () => rootRoute,
   path: "/notes",
 });
