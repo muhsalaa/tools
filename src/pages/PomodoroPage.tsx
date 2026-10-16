@@ -1,22 +1,28 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ToolShell } from "../components/ToolShell";
-import { appendSession, loadDayLog, todayKey, uid, type DayLog } from "../lib/db";
 import {
+  appendSession,
+  incrementStreak,
+  loadDayLog,
+  loadStreak,
+  purgeStaleDayLogs,
+  todayKey,
+  uid,
+  type DayLog,
+} from "../lib/db";
+import {
+  activeMs,
+  activeSec,
   dayStats,
   durationOf,
   formatTime,
+  MODE_LABEL,
   nextModeAfter,
   playBeep,
   type PomodoroMode,
 } from "../lib/pomodoro";
 
 type Status = "idle" | "running" | "paused";
-
-const MODE_LABEL: Record<PomodoroMode, string> = {
-  focus: "Focus",
-  short: "Short break",
-  long: "Long break",
-};
 
 const PILL =
   "rounded-full px-5 py-2 text-sm font-semibold transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-40";
@@ -31,39 +37,78 @@ export function PomodoroPage() {
   const [log, setLog] = useState<DayLog>({ date: todayKey(), sessions: [] });
 
   const targetRef = useRef(0);
-  const blockStartRef = useRef(0);
+  // Truthful timing: wall-clock block start + accumulated active (unpaused)
+  // ms + the open run interval. Paused stretches never enter durationSec.
+  const wallStartRef = useRef(0);
+  const activeMsRef = useRef(0);
+  const resumedAtRef = useRef<number | null>(null);
+  const startedRef = useRef(false);
   const stateRef = useRef({ mode, focusDone, label, muted });
   stateRef.current = { mode, focusDone, label, muted };
+  const logRef = useRef(log);
+  logRef.current = log;
+
+  const refreshIfNewDay = useCallback(async () => {
+    const today = todayKey();
+    if (logRef.current.date === today) return;
+    await purgeStaleDayLogs(today);
+    const [freshLog, freshStreak] = await Promise.all([loadDayLog(today), loadStreak(today)]);
+    setLog(freshLog);
+    setFocusDone(freshStreak.focusCount);
+    setMode("focus");
+    setStatus("idle");
+    setRemainingSec(durationOf("focus"));
+    startedRef.current = false;
+    resumedAtRef.current = null;
+    activeMsRef.current = 0;
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
-    void loadDayLog().then((loaded) => {
+    void (async () => {
+      const today = todayKey();
+      await purgeStaleDayLogs(today);
+      const [loaded, streak] = await Promise.all([loadDayLog(today), loadStreak(today)]);
       if (cancelled) return;
       setLog(loaded);
-      setFocusDone(loaded.sessions.length);
-    });
+      setFocusDone(streak.focusCount);
+    })();
+    // Midnight-rollover re-check: tab left open overnight starts clean.
+    const onVisible = () => {
+      if (document.visibilityState !== "hidden") void refreshIfNewDay();
+    };
+    const onFocus = () => void refreshIfNewDay();
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onFocus);
     return () => {
       cancelled = true;
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onFocus);
     };
-  }, []);
+  }, [refreshIfNewDay]);
 
   const completeBlock = useCallback(async () => {
-    const { mode: m, focusDone: done, label: rawLabel, muted: isMuted } = stateRef.current;
+    const { mode: m, label: rawLabel, muted: isMuted } = stateRef.current;
     const end = Date.now();
     if (!isMuted) playBeep();
+    // Re-check the date immediately before logging (rollover guard).
+    await refreshIfNewDay();
     if (m === "focus") {
       const trimmed = rawLabel.trim();
+      // Actual active seconds — paused time excluded (spec: truthful Session).
+      const durationSec = activeSec(activeMsRef.current, resumedAtRef.current, end);
       const date = todayKey(new Date(end));
       const next = await appendSession(date, {
         id: uid(),
-        start: blockStartRef.current,
+        start: wallStartRef.current || end,
         end,
-        durationSec: durationOf("focus"),
+        durationSec,
         ...(trimmed ? { label: trimmed } : {}),
       });
       setLog(next);
-      const nextMode = nextModeAfter("focus", done);
-      setFocusDone(done + 1);
+      const streak = await incrementStreak(date);
+      const nextMode = nextModeAfter("focus", streak.focusCount - 1);
+      setFocusDone(streak.focusCount);
       setMode(nextMode);
       setRemainingSec(durationOf(nextMode));
     } else {
@@ -71,7 +116,10 @@ export function PomodoroPage() {
       setRemainingSec(durationOf("focus"));
     }
     setStatus("idle");
-  }, []);
+    startedRef.current = false;
+    resumedAtRef.current = null;
+    activeMsRef.current = 0;
+  }, [refreshIfNewDay]);
 
   useEffect(() => {
     if (status !== "running") return;
@@ -89,13 +137,22 @@ export function PomodoroPage() {
   }, [status, completeBlock]);
 
   const start = () => {
-    blockStartRef.current = Date.now() - (durationOf(mode) - remainingSec) * 1000;
-    targetRef.current = Date.now() + remainingSec * 1000;
+    const now = Date.now();
+    if (!startedRef.current) {
+      wallStartRef.current = now;
+      activeMsRef.current = 0;
+      startedRef.current = true;
+    }
+    resumedAtRef.current = now;
+    targetRef.current = now + remainingSec * 1000;
     setStatus("running");
   };
 
   const pause = () => {
-    setRemainingSec(Math.max(0, (targetRef.current - Date.now()) / 1000));
+    const now = Date.now();
+    activeMsRef.current = activeMs(activeMsRef.current, resumedAtRef.current, now);
+    resumedAtRef.current = null;
+    setRemainingSec(Math.max(0, (targetRef.current - now) / 1000));
     setStatus("paused");
   };
 
@@ -103,6 +160,9 @@ export function PomodoroPage() {
     // Interrupted blocks are never logged — reset just restores the block.
     setStatus("idle");
     setRemainingSec(durationOf(mode));
+    startedRef.current = false;
+    resumedAtRef.current = null;
+    activeMsRef.current = 0;
   };
 
   const stats = dayStats(log.sessions);

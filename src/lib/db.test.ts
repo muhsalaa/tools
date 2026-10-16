@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import {
   appendSession,
+  incrementStreak,
   loadDayLog,
+  loadStreak,
+  purgeStaleDayLogs,
   saveDayLog,
   addNote,
   loadNotes,
@@ -27,20 +30,19 @@ function memStore(): KeyValStore & { map: Map<string, unknown> } {
     del: async (key: string): Promise<void> => {
       map.delete(key);
     },
+    keys: async (): Promise<string[]> => [...map.keys()],
   };
 }
 
 function blockedStore(): KeyValStore {
+  const fail = async (): Promise<never> => {
+    throw new DOMException("blocked", "SecurityError");
+  };
   return {
-    get: async () => {
-      throw new DOMException("blocked", "SecurityError");
-    },
-    set: async () => {
-      throw new DOMException("blocked", "SecurityError");
-    },
-    del: async () => {
-      throw new DOMException("blocked", "SecurityError");
-    },
+    get: fail,
+    set: fail,
+    del: fail,
+    keys: fail,
   };
 }
 
@@ -84,7 +86,7 @@ describe("DayLog", () => {
 
   test("completed focus blocks append; interrupted ones never do", async () => {
     const store = memStore();
-    const date = "2026-10-16";
+    const date = todayKey();
     let log = await appendSession(date, sess("a", "deep work"), store);
     expect(log.sessions).toHaveLength(1);
     log = await appendSession(date, sess("b"), store);
@@ -92,6 +94,55 @@ describe("DayLog", () => {
     // interrupted block: caller never appends, log stays as-is
     const reloaded = await loadDayLog(date, store);
     expect(reloaded.sessions).toHaveLength(2);
+  });
+
+  test("midnight rollover: stale-date append lands in today's log, old keys purged", async () => {
+    const store = memStore();
+    const today = todayKey();
+    await saveDayLog({ date: "2000-01-01", sessions: [sess("old")] }, store);
+    const log = await appendSession("2000-01-01", sess("new"), store);
+    expect(log.date).toBe(today);
+    expect(log.sessions.map((s) => s.id)).toEqual(["new"]);
+    await purgeStaleDayLogs(today, store);
+    expect(await loadDayLog("2000-01-01", store)).toEqual({
+      date: "2000-01-01",
+      sessions: [],
+    });
+    expect(await loadDayLog(today, store)).toEqual(log);
+  });
+
+  test("purge keeps today + non-daylog keys, drops superseded daylogs", async () => {
+    const store = memStore();
+    const today = todayKey();
+    await saveDayLog({ date: "2000-01-01", sessions: [sess("old")] }, store);
+    await saveDayLog({ date: today, sessions: [sess("fresh")] }, store);
+    await store.set("notes", [{ id: "n" }]);
+    await purgeStaleDayLogs(today, store);
+    expect(store.map.has("daylog:2000-01-01")).toBe(false);
+    expect(store.map.has(`daylog:${today}`)).toBe(true);
+    expect(store.map.has("notes")).toBe(true);
+  });
+});
+
+describe("Streak", () => {
+  test("fresh streak starts at zero and persists", async () => {
+    const store = memStore();
+    const today = todayKey();
+    expect(await loadStreak(today, store)).toEqual({ date: today, focusCount: 0 });
+    expect(await incrementStreak(today, store)).toEqual({ date: today, focusCount: 1 });
+    expect(await loadStreak(today, store)).toEqual({ date: today, focusCount: 1 });
+  });
+
+  test("date change resets the persisted streak explicitly, not via sessions", async () => {
+    const store = memStore();
+    await saveDayLog({ date: "2000-01-01", sessions: [sess("a"), sess("b")] }, store);
+    const yesterday = "2000-01-01";
+    expect(await incrementStreak(yesterday, store)).toEqual({ date: yesterday, focusCount: 1 });
+    const today = todayKey();
+    // Sessions still exist under the old date, but the streak resets anyway.
+    expect(await loadStreak(today, store)).toEqual({ date: today, focusCount: 0 });
+    // Reset was persisted: a second load sees the zeroed streak, not a revival.
+    expect(store.map.get("streak")).toEqual({ date: today, focusCount: 0 });
   });
 });
 
@@ -128,5 +179,10 @@ describe("blocked IndexedDB", () => {
     expect(note.body).toBe("x");
     await setPinned(note.id, true, store);
     await removeNote(note.id, store);
+    expect(await loadStreak("2026-10-16", store)).toEqual({
+      date: "2026-10-16",
+      focusCount: 0,
+    });
+    await purgeStaleDayLogs("2026-10-16", store);
   });
 });

@@ -19,11 +19,6 @@ async function copyText(text: string): Promise<void> {
   }
 }
 
-function restOf(body: string): string {
-  const idx = body.indexOf("\n");
-  return idx === -1 ? "" : body.slice(idx + 1).trimStart();
-}
-
 export function NotesPage() {
   const [notes, setNotes] = useState<NoteCard[]>([]);
   const [draft, setDraft] = useState("");
@@ -104,11 +99,12 @@ export function NotesPage() {
                     Pinned
                   </span>
                 )}
+                {/* Spec story 13: heading is the derived first-line label only. */}
                 <h2 className="min-w-0 flex-1 truncate text-sm font-bold">{titleOf(note.body)}</h2>
               </div>
-              {restOf(note.body) && (
-                <p className="text-sm whitespace-pre-wrap opacity-80">{restOf(note.body)}</p>
-              )}
+              {/* Spec story 21: full body verbatim — no markdown, no trimming.
+                  Single-line pastes show their text here too, not just in the heading. */}
+              <pre className="text-sm break-words whitespace-pre-wrap opacity-80">{note.body}</pre>
               <div className="mt-auto flex items-center gap-2 pt-1">
                 <button
                   aria-label={note.pinned ? "Unpin note" : "Pin note"}
