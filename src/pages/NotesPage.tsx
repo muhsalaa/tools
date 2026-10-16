@@ -24,10 +24,20 @@ export function NotesPage() {
   const [draft, setDraft] = useState("");
   const [title, setTitle] = useState("");
   const [query, setQuery] = useState("");
+  const [openId, setOpenId] = useState<string | null>(null);
 
   useEffect(() => {
     void loadNotes().then(setNotes);
   }, []);
+
+  useEffect(() => {
+    if (openId === null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpenId(null);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [openId]);
 
   const visible = searchNotes(notes, query);
 
@@ -120,8 +130,18 @@ export function NotesPage() {
               </div>
               {/* Spec story 21: full body verbatim — no markdown, no trimming.
                   Single-line pastes show their text here too, not just in the heading. */}
-              <pre className="text-sm break-words whitespace-pre-wrap opacity-80">{note.body}</pre>
+              <pre className="line-clamp-10 text-sm break-words whitespace-pre-wrap opacity-80">
+                {note.body}
+              </pre>
               <div className="mt-auto flex items-center gap-2 pt-1">
+                <button
+                  aria-label="Open note detail"
+                  className="rounded-full bg-[#173E3A] px-3 py-1 text-xs font-semibold text-[#D9EFE4] transition hover:opacity-90"
+                  onClick={() => setOpenId(note.id)}
+                  type="button"
+                >
+                  Detail
+                </button>
                 <button
                   aria-label={note.pinned ? "Unpin note" : "Pin note"}
                   aria-pressed={note.pinned}
@@ -152,6 +172,49 @@ export function NotesPage() {
           ))}
         </ul>
       )}
+      {openId !== null &&
+        (() => {
+          const note = notes.find((n) => n.id === openId);
+          if (!note) return null;
+          return (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-[#173E3A]/50 p-4"
+              onClick={() => setOpenId(null)}
+              role="presentation"
+            >
+              <div
+                aria-modal="true"
+                className="max-h-[80dvh] w-full max-w-lg overflow-y-auto rounded-[20px] p-5 shadow-xl"
+                onClick={(e) => e.stopPropagation()}
+                role="dialog"
+                aria-label={displayTitle(note)}
+                style={{ backgroundColor: pastelFor(note.id) }}
+              >
+                <h2 className="text-base font-bold">{displayTitle(note)}</h2>
+                <pre className="mt-3 text-sm break-words whitespace-pre-wrap opacity-90">
+                  {note.body}
+                </pre>
+                <div className="mt-4 flex justify-end gap-2">
+                  <button
+                    aria-label="Copy note"
+                    className="rounded-full bg-white/70 px-4 py-1.5 text-xs font-semibold transition hover:bg-white"
+                    onClick={() => void copyText(note.body)}
+                    type="button"
+                  >
+                    Copy
+                  </button>
+                  <button
+                    className="rounded-full bg-[#173E3A] px-4 py-1.5 text-xs font-semibold text-[#D9EFE4] transition hover:opacity-90"
+                    onClick={() => setOpenId(null)}
+                    type="button"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
     </ToolShell>
   );
 }
