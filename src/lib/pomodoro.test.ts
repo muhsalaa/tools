@@ -3,6 +3,10 @@ import {
   LONG_BREAK_SEC,
   SHORT_BREAK_SEC,
   FOCUS_SEC,
+  MODE_LABEL,
+  MODE_META,
+  activeMs,
+  activeSec,
   dayStats,
   durationOf,
   formatTime,
@@ -48,7 +52,42 @@ describe("dayStats", () => {
     expect(dayStats(sessions)).toEqual({ count: 2, totalMinutes: 50 });
   });
 
+  test("sums truthful (paused-adjusted) durations, not fixed block lengths", () => {
+    const sessions = [
+      { id: "a", start: 1, end: 2, durationSec: 900 }, // 15 active min
+      { id: "b", start: 3, end: 4, durationSec: 300 }, // 5 active min
+    ];
+    expect(dayStats(sessions)).toEqual({ count: 2, totalMinutes: 20 });
+  });
+
   test("empty log is zeroed", () => {
     expect(dayStats([])).toEqual({ count: 0, totalMinutes: 0 });
+  });
+});
+
+describe("MODE_META", () => {
+  test("one shared map feeds durationOf and MODE_LABEL", () => {
+    expect(durationOf("focus")).toBe(MODE_META.focus.seconds);
+    expect(durationOf("short")).toBe(MODE_META.short.seconds);
+    expect(durationOf("long")).toBe(MODE_META.long.seconds);
+    expect(MODE_LABEL).toEqual({
+      focus: MODE_META.focus.label,
+      short: MODE_META.short.label,
+      long: MODE_META.long.label,
+    });
+  });
+});
+
+describe("activeMs / activeSec", () => {
+  test("open run interval adds to accumulated time; paused time excluded", () => {
+    // 60s accumulated + 30s open run = 90s; paused gaps never counted.
+    expect(activeMs(60_000, 1_000, 31_000)).toBe(90_000);
+    expect(activeMs(60_000, null, 31_000)).toBe(60_000);
+    expect(activeSec(60_000, 1_000, 31_000)).toBe(90);
+  });
+
+  test("clock skew never goes negative, zero-length blocks log 1s", () => {
+    expect(activeMs(0, 5_000, 1_000)).toBe(0);
+    expect(activeSec(0, null, 0)).toBe(1);
   });
 });

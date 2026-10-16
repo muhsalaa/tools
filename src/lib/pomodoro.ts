@@ -1,18 +1,30 @@
+import type { Session } from "./daylog";
+
 export type PomodoroMode = "focus" | "short" | "long";
 
 export const FOCUS_SEC = 25 * 60;
 export const SHORT_BREAK_SEC = 5 * 60;
 export const LONG_BREAK_SEC = 15 * 60;
 
+/**
+ * Single shared mode map: durations and labels in one place. Pages render
+ * labels from MODE_LABEL and lengths from durationOf — never a parallel
+ * switch or a second map.
+ */
+export const MODE_META: Record<PomodoroMode, { label: string; seconds: number }> = {
+  focus: { label: "Focus", seconds: FOCUS_SEC },
+  short: { label: "Short break", seconds: SHORT_BREAK_SEC },
+  long: { label: "Long break", seconds: LONG_BREAK_SEC },
+};
+
+export const MODE_LABEL: Record<PomodoroMode, string> = {
+  focus: MODE_META.focus.label,
+  short: MODE_META.short.label,
+  long: MODE_META.long.label,
+};
+
 export function durationOf(mode: PomodoroMode): number {
-  switch (mode) {
-    case "focus":
-      return FOCUS_SEC;
-    case "short":
-      return SHORT_BREAK_SEC;
-    case "long":
-      return LONG_BREAK_SEC;
-  }
+  return MODE_META[mode].seconds;
 }
 
 /**
@@ -31,13 +43,28 @@ export function formatTime(totalSec: number): string {
   return `${String(m).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 }
 
-export interface StreakSession {
-  durationSec: number;
-}
-
-export function dayStats(sessions: StreakSession[]): { count: number; totalMinutes: number } {
+// Reuses Session's duration — no shadow interface. Any record carrying
+// durationSec (full Session or a subset) works here.
+export function dayStats(sessions: Pick<Session, "durationSec">[]): {
+  count: number;
+  totalMinutes: number;
+} {
   const totalSec = sessions.reduce((sum, s) => sum + s.durationSec, 0);
   return { count: sessions.length, totalMinutes: Math.round(totalSec / 60) };
+}
+
+/**
+ * Active (unpaused) milliseconds: previously accumulated time plus the open
+ * run interval. `resumedAt` is null while idle/paused.
+ */
+export function activeMs(accumulatedMs: number, resumedAt: number | null, now: number): number {
+  if (resumedAt === null) return accumulatedMs;
+  return accumulatedMs + Math.max(0, now - resumedAt);
+}
+
+/** Whole active seconds for Session logging — the truthful block duration. */
+export function activeSec(accumulatedMs: number, resumedAt: number | null, now: number): number {
+  return Math.max(1, Math.round(activeMs(accumulatedMs, resumedAt, now) / 1000));
 }
 
 /** Runtime-generated WebAudio beep. No assets, offline-safe. */

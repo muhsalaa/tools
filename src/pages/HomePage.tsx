@@ -39,6 +39,21 @@ export function HomePage() {
             <span className="text-xs opacity-60">{tool.blurb}</span>
           </Link>
         ))}
+        {/* Spec story 20: empty-slot tile keeps the grid extensible — future
+            Tools slot in here without a redesign. */}
+        <div
+          aria-label="Empty slot — more tools coming soon"
+          className="flex flex-col items-center gap-3 rounded-[20px] border-2 border-dashed border-[#173E3A]/20 px-6 py-10 text-center"
+        >
+          <span
+            aria-hidden="true"
+            className="flex h-20 w-20 items-center justify-center rounded-[20px] bg-[#173E3A]/10 text-4xl text-[#173E3A]/40"
+          >
+            +
+          </span>
+          <span className="text-lg font-bold opacity-40">More soon</span>
+          <span className="text-xs opacity-40">Empty slot for a future tool</span>
+        </div>
       </nav>
     </main>
   );
