@@ -118,6 +118,25 @@ export function NotesIcon({ size = 48 }: IconProps) {
   );
 }
 
+export function HouseIcon({ size = 32 }: IconProps) {
+  return (
+    <span style={{ width: size, height: size }} className="inline-block drop-shadow-sm">
+      <svg viewBox="0 0 64 64" width="100%" height="100%" aria-hidden="true">
+        <defs>
+          <linearGradient id="home-grad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#3AA892" />
+            <stop offset="1" stopColor="#1F7A68" />
+          </linearGradient>
+        </defs>
+        <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#home-grad)" />
+        <ellipse cx="32" cy="14" rx="22" ry="9" fill="#fff" opacity="0.35" />
+        <path d="M32 17l14 12v14a2 2 0 0 1-2 2H20a2 2 0 0 1-2-2V29z" fill="#F4FBF7" />
+        <rect x="27" y="33" width="10" height="12" rx="1.5" fill="#173E3A" />
+      </svg>
+    </span>
+  );
+}
+
 export function StartMark({ size = 24 }: IconProps) {
   return (
     <span style={{ width: size, height: size }} className="inline-block">

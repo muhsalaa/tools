@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { NotesIcon, PomodoroIcon, StartMark } from "../components/icons";
+import { HouseIcon, NotesIcon, PomodoroIcon, StartMark } from "../components/icons";
 
 const APPS = [
+  { to: "/", name: "Home", Icon: HouseIcon },
   { to: "/pomodoro", name: "Pomodoro", Icon: PomodoroIcon },
   { to: "/notes", name: "Notes", Icon: NotesIcon },
 ] as const;
