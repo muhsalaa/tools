@@ -45,16 +45,18 @@ export function StartBar() {
     <div ref={rootRef} className="fixed inset-x-0 bottom-0 z-40">
       {open && (
         <div className="mx-3 mb-2 w-60 rounded-[20px] bg-[#F4FBF7] p-2 shadow-xl ring-1 ring-[#173E3A]/10">
-          {APPS.map(({ to, name, Icon }) => (
-            <Link
-              key={to}
-              to={to}
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-3 rounded-[14px] px-3 py-2 hover:bg-[#D9EFE4]"
-            >
-              <Icon size={32} />
-              <span className="text-sm font-bold">{name}</span>
-            </Link>
+          {APPS.map(({ to, name, Icon }, i) => (
+            <div key={to}>
+              {i === 1 && <hr className="mx-3 my-1 border-[#173E3A]/10" />}
+              <Link
+                to={to}
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-3 rounded-[14px] px-3 py-2 hover:bg-[#D9EFE4]"
+              >
+                <Icon size={32} />
+                <span className="text-sm font-bold">{name}</span>
+              </Link>
+            </div>
           ))}
         </div>
       )}
