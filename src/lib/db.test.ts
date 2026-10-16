@@ -7,6 +7,7 @@ import {
   purgeStaleDayLogs,
   saveDayLog,
   addNote,
+  displayTitle,
   loadNotes,
   removeNote,
   searchNotes,
@@ -149,8 +150,8 @@ describe("Streak", () => {
 describe("NoteCard", () => {
   test("add/pin/search-order/delete round-trip", async () => {
     const store = memStore();
-    const a = await addNote("alpha paste", store);
-    const b = await addNote("beta paste", store);
+    const a = await addNote("alpha paste", undefined, store);
+    const b = await addNote("beta paste", undefined, store);
     expect(await loadNotes(store)).toHaveLength(2);
 
     await setPinned(b.id, true, store);
@@ -164,6 +165,18 @@ describe("NoteCard", () => {
     const rest = await loadNotes(store);
     expect(rest.map((n) => n.id)).toEqual([b.id]);
   });
+
+  test("explicit title stored; empty autofills from body", async () => {
+    const store = memStore();
+    const titled = await addNote("body text here", "My Title", store);
+    expect(titled.title).toBe("My Title");
+    expect(displayTitle(titled)).toBe("My Title");
+    const untitled = await addNote("first line\nsecond", "  ", store);
+    expect(untitled.title).toBeUndefined();
+    expect(displayTitle(untitled)).toBe("first line");
+    const found = searchNotes(await loadNotes(store), "my title");
+    expect(found.map((n: NoteCard) => n.id)).toEqual([titled.id]);
+  });
 });
 
 describe("blocked IndexedDB", () => {
@@ -175,7 +188,7 @@ describe("blocked IndexedDB", () => {
     expect(appended.sessions).toHaveLength(1);
     await saveDayLog({ date: "2026-10-16", sessions: [sess("a")] }, store);
     expect(await loadNotes(store)).toEqual([]);
-    const note = await addNote("x", store);
+    const note = await addNote("x", undefined, store);
     expect(note.body).toBe("x");
     await setPinned(note.id, true, store);
     await removeNote(note.id, store);

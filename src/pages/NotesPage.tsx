@@ -2,11 +2,11 @@ import { useEffect, useState } from "react";
 import { ToolShell } from "../components/ToolShell";
 import {
   addNote,
+  displayTitle,
   loadNotes,
   removeNote,
   searchNotes,
   setPinned,
-  titleOf,
   type NoteCard,
 } from "../lib/db";
 import { pastelFor } from "../lib/pastel";
@@ -22,6 +22,7 @@ async function copyText(text: string): Promise<void> {
 export function NotesPage() {
   const [notes, setNotes] = useState<NoteCard[]>([]);
   const [draft, setDraft] = useState("");
+  const [title, setTitle] = useState("");
   const [query, setQuery] = useState("");
 
   useEffect(() => {
@@ -33,9 +34,10 @@ export function NotesPage() {
   const handleAdd = async () => {
     const body = draft.trim();
     if (!body) return;
-    const note = await addNote(body);
+    const note = await addNote(body, title);
     setNotes((prev) => [...prev, note]);
     setDraft("");
+    setTitle("");
   };
 
   const handlePin = async (id: string, pinned: boolean) => {
@@ -49,7 +51,18 @@ export function NotesPage() {
   return (
     <ToolShell title="Notes">
       <section className="rounded-[20px] bg-[#F4FBF7] p-4 shadow-sm sm:p-5">
-        <label className="text-sm font-semibold" htmlFor="note-draft">
+        <label className="text-sm font-semibold" htmlFor="note-title">
+          Title <span className="font-normal opacity-50">(optional)</span>
+        </label>
+        <input
+          className="mt-2 w-full rounded-full border border-[#173E3A]/15 bg-white/70 px-4 py-2 text-sm outline-none placeholder:opacity-50 focus:border-[#173E3A]/40"
+          id="note-title"
+          maxLength={80}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Leave empty to use the first line"
+          value={title}
+        />
+        <label className="mt-3 block text-sm font-semibold" htmlFor="note-draft">
           Quick add
         </label>
         <textarea
@@ -59,15 +72,7 @@ export function NotesPage() {
           placeholder="Paste anything temporary…"
           value={draft}
         />
-        <div className="mt-3 flex items-center justify-between gap-3">
-          <input
-            aria-label="Search notes"
-            className="w-full rounded-full border border-[#173E3A]/15 bg-white/70 px-4 py-2 text-sm outline-none placeholder:opacity-50 focus:border-[#173E3A]/40"
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search notes…"
-            type="search"
-            value={query}
-          />
+        <div className="mt-3 flex justify-end">
           <button
             className="shrink-0 rounded-full bg-[#173E3A] px-5 py-2 text-sm font-semibold text-[#D9EFE4] transition hover:opacity-90 disabled:opacity-40"
             disabled={!draft.trim()}
@@ -77,6 +82,17 @@ export function NotesPage() {
             Add
           </button>
         </div>
+      </section>
+
+      <section className="rounded-[20px] bg-[#F4FBF7] p-4 shadow-sm sm:p-5">
+        <input
+          aria-label="Search notes"
+          className="w-full rounded-full border border-[#173E3A]/15 bg-white/70 px-4 py-2 text-sm outline-none placeholder:opacity-50 focus:border-[#173E3A]/40"
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search notes…"
+          type="search"
+          value={query}
+        />
       </section>
 
       {visible.length === 0 ? (
@@ -100,7 +116,7 @@ export function NotesPage() {
                   </span>
                 )}
                 {/* Spec story 13: heading is the derived first-line label only. */}
-                <h2 className="min-w-0 flex-1 truncate text-sm font-bold">{titleOf(note.body)}</h2>
+                <h2 className="min-w-0 flex-1 truncate text-sm font-bold">{displayTitle(note)}</h2>
               </div>
               {/* Spec story 21: full body verbatim — no markdown, no trimming.
                   Single-line pastes show their text here too, not just in the heading. */}

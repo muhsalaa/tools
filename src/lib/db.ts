@@ -17,6 +17,7 @@ export {
 } from "./daylog";
 export {
   addNote,
+  displayTitle,
   loadNotes,
   removeNote,
   searchNotes,

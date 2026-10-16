@@ -2,6 +2,8 @@ import { defaultStore, safeGet, safeSet, uid, type KeyValStore } from "./store";
 
 export interface NoteCard {
   id: string;
+  /** Optional explicit title. Empty → UI falls back to first line of body. */
+  title?: string;
   body: string;
   pinned: boolean;
   createdAt: number;
@@ -17,6 +19,11 @@ export function titleOf(body: string): string {
   return body.split("\n", 1)[0].trim().slice(0, 60);
 }
 
+/** Display title: explicit title wins, else first line of body. */
+export function displayTitle(note: Pick<NoteCard, "title" | "body">): string {
+  return note.title?.trim() || titleOf(note.body) || "Untitled";
+}
+
 export async function loadNotes(store: KeyValStore = defaultStore): Promise<NoteCard[]> {
   const stored = await safeGet<NoteCard[]>(NOTES_KEY, store);
   if (!Array.isArray(stored)) return [];
@@ -30,14 +37,20 @@ export async function saveNotes(
   await safeSet(NOTES_KEY, notes, store);
 }
 
-export async function addNote(body: string, store: KeyValStore = defaultStore): Promise<NoteCard> {
+export async function addNote(
+  body: string,
+  title?: string,
+  store: KeyValStore = defaultStore,
+): Promise<NoteCard> {
   const now = Date.now();
+  const trimmedTitle = title?.trim();
   const note: NoteCard = {
     id: uid(),
     body,
     pinned: false,
     createdAt: now,
     updatedAt: now,
+    ...(trimmedTitle ? { title: trimmedTitle } : {}),
   };
   const notes = await loadNotes(store);
   await saveNotes([...notes, note], store);
@@ -77,8 +90,13 @@ export function searchNotes(notes: NoteCard[], query: string): NoteCard[] {
   const q = query.trim().toLowerCase();
   if (!q) return sortedNotes(notes);
   return sortedNotes(
-    notes.filter(
-      (n) => n.body.toLowerCase().includes(q) || titleOf(n.body).toLowerCase().includes(q),
-    ),
+    notes.filter((n) => {
+      const q2 = q;
+      return (
+        n.body.toLowerCase().includes(q2) ||
+        (n.title ?? "").toLowerCase().includes(q2) ||
+        titleOf(n.body).toLowerCase().includes(q2)
+      );
+    }),
   );
 }
