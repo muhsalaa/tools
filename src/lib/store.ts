@@ -15,6 +15,29 @@ export const defaultStore: KeyValStore = {
   keys: async () => (await keys()).map(String),
 };
 
+/** localStorage-backed store: sync, tiny payloads only (timer snapshot). */
+export const localStore: KeyValStore = {
+  get: async <T>(key: string): Promise<T | undefined> => {
+    try {
+      if (typeof localStorage === "undefined") return undefined;
+      const raw = localStorage.getItem(key);
+      return raw === null ? undefined : (JSON.parse(raw) as T);
+    } catch {
+      return undefined;
+    }
+  },
+  set: async (key, value) => {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch {}
+  },
+  del: async (key) => {
+    try {
+      localStorage.removeItem(key);
+    } catch {}
+  },
+};
+
 export function uid(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();
